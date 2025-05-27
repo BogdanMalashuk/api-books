@@ -2,17 +2,14 @@ version: '3.8'
 
 services:
   mongo:
-    image: mongo:latest
-    container_name: mongo
+    image: mongo:4.4
     ports:
       - "27017:27017"
     volumes:
-      - mongo_data:/data/db
+      - mongo-data:/data/db
 
   web:
     build: .
-    container_name: api
-    command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - .:/app
     ports:
@@ -20,8 +17,12 @@ services:
     depends_on:
       - mongo
     environment:
-      - MONGO_HOST=mongo
-      - MONGO_PORT=27017
+      - DJANGO_SETTINGS_MODULE=api.settings
+      - MONGO_DB_NAME=${MONGO_DB_NAME}
+      - MONGO_HOST=${MONGO_HOST}
+      - MONGO_PORT=${MONGO_PORT}
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - DJANGO_DEBUG=${DJANGO_DEBUG}
 
 volumes:
-  mongo_data:
+  mongo-data:
