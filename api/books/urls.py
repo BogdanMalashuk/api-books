@@ -1,6 +1,10 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from views import *
+from .views import *
+from drf_spectacular.views import (
+    SpectacularAPIView,
+    SpectacularSwaggerView,
+)
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
@@ -21,4 +25,7 @@ urlpatterns = [
     path('users/<str:user_id>/borrowed/', UserBorrowedBooksView.as_view(), name='user-borrowed'),
     path('users/my-history/', BorrowHistoryView.as_view(), name='self-history'),
     path('users/<str:user_id>/history/', BorrowHistoryView.as_view(), name='user-history'),
+
+    path('schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='docs'),
 ]
