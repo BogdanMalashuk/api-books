@@ -23,6 +23,7 @@ services:
       - MONGO_PORT=${MONGO_PORT}
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
       - DJANGO_DEBUG=${DJANGO_DEBUG}
-
+    command: >
+      sh -c "python api/manage.py runserver 0.0.0.0:8000"
 volumes:
   mongo-data:
