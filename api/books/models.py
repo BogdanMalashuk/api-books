@@ -9,7 +9,7 @@ from mongoengine import (
 class User(Document):
     name = StringField(required=True, max_length=100)
     email = EmailField(required=True, unique=True)
-    password = StringField(required=True)  # здесь хранится хэш пароля
+    password = StringField(required=True)
 
     def __str__(self):
         return self.name
