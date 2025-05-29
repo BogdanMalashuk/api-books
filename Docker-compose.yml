@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   mongo:
     image: mongo:4.4
@@ -24,6 +22,7 @@ services:
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
       - DJANGO_DEBUG=${DJANGO_DEBUG}
     command: >
-      sh -c "python api/manage.py runserver 0.0.0.0:8000"
+      sh -c "python api/manage.py seed_data &&
+             python api/manage.py runserver 0.0.0.0:8000"
 volumes:
   mongo-data:
