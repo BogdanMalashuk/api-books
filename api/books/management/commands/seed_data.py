@@ -4,10 +4,13 @@ from books.models import User, Genre, Book, BorrowRecord
 
 
 class Command(BaseCommand):
-    help = 'Заполняет базу тестовыми данными'
+    """
+    Django management command to populate the MongoDB database
+    with sample data for testing and development.
+    """
+    help = 'Populates the database with test data'
 
     def handle(self, *args, **kwargs):
-        # Здесь твой код из функции seed() без os.environ и django.setup()
         BorrowRecord.objects.delete()
         Book.objects.delete()
         Genre.objects.delete()
@@ -20,40 +23,40 @@ class Command(BaseCommand):
 
         users = []
         for i in range(1, 6):
-            u = User(name=f"User{i}", email=f"user{i}@example.com")
-            u.set_password(f"password{i}")
-            u.save()
-            users.append(u)
+            user = User(name=f"User{i}", email=f"user{i}@example.com")
+            user.set_password(f"password{i}")
+            user.save()
+            users.append(user)
 
+        genre_names = ["Science Fiction", "Detective", "Science", "Romance", "History"]
         genres = []
-        genre_names = ["Фантастика", "Детектив", "Научная литература", "Романтика", "История"]
         for name in genre_names:
-            g = Genre(name=name)
-            g.save()
-            genres.append(g)
+            genre = Genre(name=name)
+            genre.save()
+            genres.append(genre)
 
-        books = []
         book_data = [
-            ("Космическая одиссея", "Артур Кларк", "Фантастика о космосе"),
-            ("Шерлок Холмс", "Артур Конан Дойл", "Детективные истории"),
-            ("Физика для всех", "Ричард Фейнман", "Популярная наука"),
-            ("Любовь и страсть", "Джейн Остин", "Романтический роман"),
-            ("Вторая мировая", "Джон Кеннеди", "Историческое исследование"),
+            ("2001: A Space Odyssey", "Arthur C. Clarke", "A science fiction story about space exploration."),
+            ("Sherlock Holmes", "Arthur Conan Doyle", "Detective stories featuring Sherlock Holmes."),
+            ("The Feynman Lectures on Physics", "Richard Feynman", "Popular science physics lectures."),
+            ("Pride and Passion", "Jane Austen", "A romantic novel."),
+            ("World War II", "John Kennedy", "A historical study of the Second World War."),
         ]
-        for i, (title, author, desc) in enumerate(book_data):
-            b = Book(title=title, author=author, description=desc, genre=genres[i])
-            b.save()
-            books.append(b)
+        books = []
+        for i, (title, author, description) in enumerate(book_data):
+            book = Book(title=title, author=author, description=description, genre=genres[i])
+            book.save()
+            books.append(book)
 
         for i in range(5):
-            borrowed_at = datetime.now(timezone.utc) - timedelta(days=i*2)
+            borrowed_at = datetime.now(timezone.utc) - timedelta(days=i * 2)
             returned_at = None if i % 2 == 0 else borrowed_at + timedelta(days=1)
-            br = BorrowRecord(
+            record = BorrowRecord(
                 user=users[i],
                 book=books[i],
                 borrowed_at=borrowed_at,
                 returned_at=returned_at
             )
-            br.save()
+            record.save()
 
-        self.stdout.write(self.style.SUCCESS("✅ Тестовые данные успешно созданы!"))
+        self.stdout.write(self.style.SUCCESS("✅ Sample data successfully created!"))
