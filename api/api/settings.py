@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'books',
     'rest_framework',
     'drf_spectacular',
+    'django_filters',
 ]
 
 MIDDLEWARE = [
