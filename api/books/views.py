@@ -24,6 +24,14 @@ from .permissions import IsAdminOrReadOnly
 
 
 def get_object_or_404_mongo(cls, **kwargs):
+    """
+    Retrieve a MongoEngine document or raise a 404 error if not found.
+    Args:
+        cls (Document): The MongoEngine document class.
+        **kwargs: Filter parameters to retrieve the document.
+    Returns:
+        Document: The retrieved document instance.
+    """
     try:
         obj = cls.objects.get(**kwargs)
     except DoesNotExist:
@@ -32,6 +40,14 @@ def get_object_or_404_mongo(cls, **kwargs):
 
 
 class RegisterView(CreateAPIView):
+    """
+    Register a new user.
+
+    POST:
+        Register a new user account with the provided credentials.
+    Returns:
+        Response: JSON with created user data or validation errors.
+    """
     serializer_class = UserSerializer
 
     def create(self, request, *args, **kwargs):
@@ -41,12 +57,20 @@ class RegisterView(CreateAPIView):
 
 
 class UserListView(ListAPIView):
+    """
+    Retrieve a list of all users (admin only).
+    GET:
+        Return a list of all registered users.
+    """
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAdminUser]
 
 
 class UserDetailView(RetrieveUpdateDestroyAPIView):
+    """
+    Retrieve, update, or delete a specific user by ID (admin only).
+    """
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAdminUser]
@@ -54,6 +78,13 @@ class UserDetailView(RetrieveUpdateDestroyAPIView):
 
 
 class BookListCreateView(ListCreateAPIView):
+    """
+    List all books or create a new one.
+    GET:
+        Return a list of all books with filters.
+    POST:
+        Add a new book (admin only).
+    """
     queryset = Book.objects.all()
     serializer_class = BookSerializer
     permission_classes = [IsAdminOrReadOnly]
@@ -69,6 +100,11 @@ class BookListCreateView(ListCreateAPIView):
 
 
 class BookDetailView(RetrieveUpdateDestroyAPIView):
+    """
+    Retrieve, update, or delete a specific book by ID.
+    Permissions:
+        Admin can update/delete. Read-only for others.
+    """
     serializer_class = BookSerializer
     permission_classes = [IsAdminOrReadOnly]
 
@@ -77,12 +113,23 @@ class BookDetailView(RetrieveUpdateDestroyAPIView):
 
 
 class GenreListCreateView(ListCreateAPIView):
+    """
+    List all genres or create a new one.
+    GET:
+        Return a list of all genres.
+    POST:
+        Create a new genre (admin only).
+    """
+
     queryset = Genre.objects.all()
     serializer_class = GenreSerializer
     permission_classes = [IsAdminOrReadOnly]
 
 
 class GenreDetailView(RetrieveUpdateDestroyAPIView):
+    """
+    Retrieve, update, or delete a genre by ID.
+    """
     serializer_class = GenreSerializer
     permission_classes = [IsAdminOrReadOnly]
 
@@ -91,9 +138,22 @@ class GenreDetailView(RetrieveUpdateDestroyAPIView):
 
 
 class BorrowBookView(APIView):
+    """
+    Borrow a book by ID.
+    POST:
+        Mark the book as borrowed by the authenticated user.
+    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
+        """
+        Borrow a book if it's available.
+        Args:
+            request (Request): The HTTP request.
+            pk (str): The ID of the book to borrow.
+        Returns:
+            Response: Success message or error.
+        """
         book = get_object_or_404_mongo(Book, id=pk)
         if book.is_borrowed:
             return Response({"detail": "The book has already been taken"}, status=status.HTTP_400_BAD_REQUEST)
@@ -103,9 +163,23 @@ class BorrowBookView(APIView):
 
 
 class ReturnBookView(APIView):
+    """
+    Return a previously borrowed book.
+    POST:
+        Mark a book as returned for the authenticated user.
+    """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
+        """
+        Return a book if the user has borrowed it.
+        Args:
+            request (Request): The HTTP request.
+            pk (str): The ID of the book to return.
+        Returns:
+            Response: Success message or error.
+        """
         book = get_object_or_404_mongo(Book, id=pk)
         try:
             record = BorrowRecord.objects.get(book=book, user=request.user, returned_at=None)
@@ -117,6 +191,11 @@ class ReturnBookView(APIView):
 
 
 class UserBorrowedBooksView(ListAPIView):
+    """
+    View all currently borrowed books by a user.
+    GET:
+        Return a list of books the user has borrowed and not yet returned.
+    """
     serializer_class = BookSerializer
     permission_classes = [IsAuthenticated]
 
@@ -129,6 +208,11 @@ class UserBorrowedBooksView(ListAPIView):
 
 
 class BorrowHistoryView(ListAPIView):
+    """
+    View borrowing history of a user.
+    GET:
+        Return all borrow records (past and present) for a user.
+    """
     serializer_class = BorrowRecordSerializer
     permission_classes = [IsAuthenticated]
 
