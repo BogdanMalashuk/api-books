@@ -1,12 +1,26 @@
-from rest_framework.views import APIView
+from rest_framework.generics import (
+    ListCreateAPIView,
+    RetrieveUpdateDestroyAPIView,
+    CreateAPIView,
+    ListAPIView
+)
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.exceptions import NotFound
-from .models import Book, BorrowRecord, Genre, User
-from .serializers import BookSerializer, UserSerializer, GenreSerializer, BorrowRecordSerializer
-from .permissions import IsAdminOrReadOnly
+from rest_framework.views import APIView
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import OrderingFilter, SearchFilter
 from mongoengine.errors import DoesNotExist
+
+from .models import Book, BorrowRecord, Genre, User
+from .serializers import (
+    BookSerializer,
+    UserSerializer,
+    GenreSerializer,
+    BorrowRecordSerializer
+)
+from .permissions import IsAdminOrReadOnly
 
 
 def get_object_or_404_mongo(cls, **kwargs):
@@ -17,96 +31,63 @@ def get_object_or_404_mongo(cls, **kwargs):
     return obj
 
 
-class RegisterView(APIView):
-    def post(self, request):
-        password = request.data.get('password')
-        if not password:
+class RegisterView(CreateAPIView):
+    serializer_class = UserSerializer
+
+    def create(self, request, *args, **kwargs):
+        if not request.data.get('password'):
             return Response({'password': 'This field is required.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        serializer = UserSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({'message': 'User successfully registered.'}, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return super().create(request, *args, **kwargs)
 
 
-class UserListView(APIView):
+class UserListView(ListAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
     permission_classes = [IsAdminUser]
 
-    def get(self, request):
-        users = User.objects()
-        serializer = UserSerializer(users, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
 
-
-class UserDetailView(APIView):
+class UserDetailView(RetrieveUpdateDestroyAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
     permission_classes = [IsAdminUser]
-
-    def get_object(self, pk):
-        try:
-            return User.objects.get(id=pk)
-        except DoesNotExist:
-            return None
-
-    def get(self, request, pk):
-        user = self.get_object(pk)
-        if not user:
-            return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-        serializer = UserSerializer(user)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+    lookup_field = "id"
 
 
-class BookListCreateView(APIView):
+class BookListCreateView(ListCreateAPIView):
+    queryset = Book.objects.all()
+    serializer_class = BookSerializer
     permission_classes = [IsAdminOrReadOnly]
 
-    def get(self, request):
-        books = Book.objects()
-        genre = request.query_params.get("genre")
-        author = request.query_params.get("author")
-        is_borrowed = request.query_params.get("is_borrowed")
-
-        if genre:
-            books = books.filter(genre__name=genre)
-        if author:
-            books = books.filter(author__icontains=author)
-        if is_borrowed is not None:
-            is_borrowed_bool = is_borrowed.lower() in ['true', '1', 'yes']
-            books = books.filter(is_borrowed=is_borrowed_bool)
-
-        serializer = BookSerializer(books, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def post(self, request):
-        serializer = BookSerializer(data=request.data)
-        if serializer.is_valid():
-            book = serializer.save()
-            return Response(BookSerializer(book).data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
+    filterset_fields = {
+        'genre__name': ['exact'],
+        'is_borrowed': ['exact'],
+    }
+    search_fields = ['author', 'published_at', 'title', 'genre']
+    ordering_fields = ['title', 'author', 'published_at']
+    ordering = ['title']
 
 
-class BookDetailView(APIView):
+class BookDetailView(RetrieveUpdateDestroyAPIView):
+    serializer_class = BookSerializer
     permission_classes = [IsAdminOrReadOnly]
 
-    def get_object(self, pk):
-        return get_object_or_404_mongo(Book, id=pk)
+    def get_object(self):
+        return get_object_or_404_mongo(Book, id=self.kwargs['pk'])
 
-    def get(self, request, pk):
-        book = self.get_object(pk)
-        serializer = BookSerializer(book)
-        return Response(serializer.data, status=status.HTTP_200_OK)
 
-    def put(self, request, pk):
-        book = self.get_object(pk)
-        serializer = BookSerializer(book, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class GenreListCreateView(ListCreateAPIView):
+    queryset = Genre.objects.all()
+    serializer_class = GenreSerializer
+    permission_classes = [IsAdminOrReadOnly]
 
-    def delete(self, request, pk):
-        book = self.get_object(pk)
-        book.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+
+class GenreDetailView(RetrieveUpdateDestroyAPIView):
+    serializer_class = GenreSerializer
+    permission_classes = [IsAdminOrReadOnly]
+
+    def get_object(self):
+        return get_object_or_404_mongo(Genre, id=self.kwargs['pk'])
 
 
 class BorrowBookView(APIView):
@@ -117,8 +98,7 @@ class BorrowBookView(APIView):
         if book.is_borrowed:
             return Response({"detail": "The book has already been taken"}, status=status.HTTP_400_BAD_REQUEST)
 
-        record = BorrowRecord(user=request.user, book=book)
-        record.save()
+        BorrowRecord(user=request.user, book=book).save()
         return Response({"detail": "The book was successfully taken"}, status=status.HTTP_200_OK)
 
 
@@ -136,87 +116,30 @@ class ReturnBookView(APIView):
         return Response({"detail": "Book successfully returned"}, status=status.HTTP_200_OK)
 
 
-class UserBorrowedBooksView(APIView):
+class UserBorrowedBooksView(ListAPIView):
+    serializer_class = BookSerializer
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, user_id=None):
-        if user_id is None:
-            user_id = request.user.id
-        if user_id != request.user.id and not request.user.is_staff:
-            return Response({"detail": "You do not have permission to view other users' borrowed books."},
-                            status=status.HTTP_403_FORBIDDEN)
-
+    def get_queryset(self):
+        user_id = self.kwargs.get("user_id") or self.request.user.id
+        if user_id != self.request.user.id and not self.request.user.is_staff:
+            raise NotFound("You do not have permission to view other users' borrowed books.")
         borrow_records = BorrowRecord.objects(user=user_id, returned_at=None)
-        books = [record.book for record in borrow_records]
-        serializer = BookSerializer(books, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return [record.book for record in borrow_records]
 
 
-class BorrowHistoryView(APIView):
+class BorrowHistoryView(ListAPIView):
+    serializer_class = BorrowRecordSerializer
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, user_id=None):
-        if user_id is None:
-            user = request.user
-        else:
-            try:
-                user = User.objects.get(id=user_id)
-            except DoesNotExist:
-                return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-            if request.user.id != user.id and not request.user.is_staff:
-                return Response({"detail": "You do not have permission to view this."}, status=status.HTTP_403_FORBIDDEN)
-
-        records = BorrowRecord.objects.filter(user=user)
-        serializer = BorrowRecordSerializer(records, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-class GenreListCreateView(APIView):
-    permission_classes = [IsAdminOrReadOnly]
-
-    def get(self, request):
-        genres = Genre.objects.all()
-        serializer = GenreSerializer(genres, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def post(self, request):
-        serializer = GenreSerializer(data=request.data)
-        if serializer.is_valid():
-            genre = Genre(**serializer.validated_data)
-            genre.save()
-            return Response(GenreSerializer(genre).data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class GenreDetailView(APIView):
-    permission_classes = [IsAdminOrReadOnly]
-
-    def get_genre(self, pk):
+    def get_queryset(self):
+        user_id = self.kwargs.get("user_id") or self.request.user.id
         try:
-            return Genre.objects.get(id=pk)
+            user = User.objects.get(id=user_id)
         except DoesNotExist:
-            return None
+            raise NotFound("User not found")
 
-    def get(self, request, pk):
-        genre = self.get_genre(pk)
-        if not genre:
-            return Response({"detail": "Genre not found"}, status=status.HTTP_404_NOT_FOUND)
-        return Response(GenreSerializer(genre).data, status=status.HTTP_200_OK)
+        if user.id != self.request.user.id and not self.request.user.is_staff:
+            raise NotFound("You do not have permission to view this.")
 
-    def put(self, request, pk):
-        genre = self.get_genre(pk)
-        if not genre:
-            return Response({"detail": "Genre not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        serializer = GenreSerializer(genre, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(GenreSerializer(genre).data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, pk):
-        genre = self.get_genre(pk)
-        if not genre:
-            return Response({"detail": "Genre not found"}, status=status.HTTP_404_NOT_FOUND)
-        genre.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return BorrowRecord.objects.filter(user=user)
