@@ -34,6 +34,7 @@ class Book(Document):
     description = StringField()
     genre = ReferenceField(Genre)
     is_borrowed = BooleanField(default=False)
+    published_at = DateTimeField(default=datetime.now(UTC))
 
     def __str__(self):
         return self.title
